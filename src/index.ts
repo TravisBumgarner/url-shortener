@@ -1,6 +1,8 @@
 import dotenv from 'dotenv'
 import express, { type Request, type Response } from 'express'
+import NodeCache from 'node-cache'
 import { getAuthUrl, getLongURLFromShortCode, getSheetData, getTokens } from './googleSheets'
+const cache = new NodeCache()
 
 dotenv.config()
 
@@ -50,12 +52,20 @@ app.get('/data', async (req: Request, res: Response) => {
 app.get('/sc/:shortcode', async (req: Request, res: Response) => {
   // Access the URL parameter
   const { shortcode } = req.params
+
+  const cacheHitLongUrl = cache.get(shortcode)
+  if (cacheHitLongUrl !== undefined) {
+    return res.send(`Long url from cache: ${cacheHitLongUrl}`)
+  }
+
   const longUrl = await getLongURLFromShortCode(shortcode)
 
-  if (shortcode === undefined) {
+  if (longUrl === undefined) {
     return res.send(`Not Found :(`)
   }
-  res.send(`Long url received: ${longUrl}`)
+
+  cache.set(shortcode, longUrl)
+  res.send(`Long url from google sheets: ${longUrl}`)
 })
 
 app.listen(port, () => {
