@@ -1,73 +1,57 @@
 import dotenv from 'dotenv'
-import express, { type Request, type Response } from 'express'
+import express from 'express'
+import { google } from 'googleapis'
 import NodeCache from 'node-cache'
-import { getAuthUrl, getLongURLFromShortCode, getSheetData, getTokens } from './googleSheets'
-const cache = new NodeCache()
 
 dotenv.config()
+const cache = new NodeCache()
 
 const app = express()
-const port = process.env.PORT ?? 3000
+const port = 3000
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('Hello, world!')
-})
+// Your public Google Sheet ID and range
+const SPREADSHEET_ID = '1aIV-J3SgbS4AEZexb6sH0r6us3EfP9onD8_098CZmCs'
+const RANGE = 'Sheet1!A1:D10' // Adjust the range as needed
 
-app.get('/auth', (req: Request, res: Response) => {
-  console.log('auth')
-  const authUrl = getAuthUrl()
-  res.redirect(authUrl)
-})
+// Initialize Google Sheets API
+const sheets = google.sheets('v4')
 
-app.get('/oauth2callback', async (req: Request, res: Response) => {
-  console.log('oauth2callback')
-  const code = req.query.code as string
-  if (!code) {
-    return res.status(400).send('No code query parameter found')
-  }
-
-  try {
-    await getTokens(code)
-    res.redirect('/data')
-  } catch (error) {
-    res.status(500).send('Error retrieving tokens')
-  }
-})
-
-app.get('/data', async (req: Request, res: Response) => {
-  try {
-    const sheetId = process.env.GOOGLE_SHEET_ID
-
-    if (!sheetId) throw Error('need sheet id')
-
-    const range = 'Sheet1!A1:D10' // Modify the range according to your sheet
-    const data = await getSheetData(sheetId, range)
-    res.json(data)
-  } catch (error) {
-    console.log(error)
-    res.status(500).send('Error retrieving sheet data')
-  }
-})
-
-app.get('/sc/:shortcode', async (req: Request, res: Response) => {
-  // Access the URL parameter
+// Define a route to fetch data from Google Sheets
+app.get('/:shortcode', async (req, res) => {
   const { shortcode } = req.params
-
   const cacheHitLongUrl = cache.get(shortcode)
   if (cacheHitLongUrl !== undefined) {
     return res.send(`Long url from cache: ${cacheHitLongUrl}`)
   }
+  try {
+    // Create a Google Sheets client with no authentication (for public sheets)
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: RANGE,
+      key: process.env.GOOGLE_API_KEY, // Replace with your Google API Key
+    })
 
-  const longUrl = await getLongURLFromShortCode(shortcode)
+    const lookups = response.data.values as Array<[string, string]>
+    if (lookups === undefined) {
+      res.status(404).send('The URL you were looking for could not be found')
+      return
+    }
 
-  if (longUrl === undefined) {
-    return res.send(`Not Found :(`)
+    const match = lookups.find(entry => entry[0] === shortcode)
+
+    if (match === undefined) {
+      res.status(404).send('The URL you were looking for could not be found')
+      return
+    }
+
+    res.redirect(match[1])
+  } catch (error) {
+    console.error('Error fetching data:', error)
+    res.status(500).send('Server Error')
   }
-
-  cache.set(shortcode, longUrl)
-  res.send(`Long url from google sheets: ${longUrl}`)
 })
 
+// Start the Express server
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`)
+  console.log(`Server running on http://localhost:${port}`)
 })
