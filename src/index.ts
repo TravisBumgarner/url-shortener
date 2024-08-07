@@ -1,6 +1,6 @@
 import dotenv from 'dotenv'
 import express, { type Request, type Response } from 'express'
-import { getAuthUrl, getSheetData, getTokens } from './googleSheets'
+import { getAuthUrl, getLongURLFromShortCode, getSheetData, getTokens } from './googleSheets'
 
 dotenv.config()
 
@@ -45,6 +45,17 @@ app.get('/data', async (req: Request, res: Response) => {
     console.log(error)
     res.status(500).send('Error retrieving sheet data')
   }
+})
+
+app.get('/sc/:shortcode', async (req: Request, res: Response) => {
+  // Access the URL parameter
+  const { shortcode } = req.params
+  const longUrl = await getLongURLFromShortCode(shortcode)
+
+  if (shortcode === undefined) {
+    return res.send(`Not Found :(`)
+  }
+  res.send(`Long url received: ${longUrl}`)
 })
 
 app.listen(port, () => {

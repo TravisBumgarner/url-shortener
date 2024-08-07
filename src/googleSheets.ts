@@ -34,3 +34,22 @@ export const getSheetData = async (sheetId: string, range: string) => {
   })
   return response.data.values
 }
+
+export const getLongURLFromShortCode = async (shortcode: string) => {
+  const sheetId = process.env.GOOGLE_SHEET_ID ?? ''
+  const RANGE = 'Sheet1!A2:B'
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: RANGE,
+  })
+  const lookups = response.data.values as Array<[string, string]>
+
+  const match = lookups.find(entry => entry[0] === shortcode)
+
+  if (match === undefined) {
+    return undefined
+  }
+
+  return match[1]
+}
