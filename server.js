@@ -50,6 +50,10 @@ app.get('/:shortcode', async (req, res) => {
   }
 })
 
+app.get('/', (req, res) => {
+  res.status(200).send('This is just for url forwarding. Nothing to see!')
+})
+
 // Start the Express server
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`)
