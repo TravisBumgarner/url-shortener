@@ -51,7 +51,7 @@ app.get('/:shortcode', async (req, res) => {
 })
 
 app.get('/', (req, res) => {
-  res.status(200).send('This is just for url forwarding. Nothing to see!')
+  res.status(200).send('This is just for url forwarding. Nothing to see!\nMight I recommend <a href="https://sillysideprojects.com">Silly Side Projects</a>?')
 })
 
 // Start the Express server
